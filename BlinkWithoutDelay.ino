@@ -41,15 +41,16 @@ unsigned long currentMillis;
 // will quickly become a bigger number than can be stored in an int.
 long interval = 200;           // interval at which to blink (milliseconds)
 
-void(* resetFunc) (void) = 0;
+void(*resetFunc) (void) = 0;
 
 void setup() {
   // set the digital pin as output:
   pinMode(ledPin, OUTPUT);
+  Serial.begin (9600);
   while (!Serial) {
     ;
   }
-  cmd.init();
+  cmd.init(true);
 }
 
 void loop()
@@ -77,32 +78,32 @@ void loop()
   cmd.check();
 }
 
-int pCB(char *inBuffer) {
+int pCB(char *inBuffer, int length) {
   boolean setLed = false;
   int rc = 0;
 
-  if (0 == strcmp(inBuffer, "stop")) {
+  if (0 == strncmp(inBuffer, "stop", length)) {
     running = false;
     Serial.println("Stopped");
   }
-  else if (0 == strcmp(inBuffer, "start")) {
+  else if (0 == strncmp(inBuffer, "start", length)) {
     running = true;
     previousMillis = currentMillis;
     Serial.println("Started");
   }
-  else if (0 == strcmp(inBuffer, "on")) {
+  else if (0 == strncmp(inBuffer, "on", length)) {
     if (! running) {
       ledState = HIGH;
       setLed = true;
     }
   }
-  else if (0 == strcmp(inBuffer, "off")) {
+  else if (0 == strncmp(inBuffer, "off", length)) {
     if (! running) {
       ledState = LOW;
       setLed = true;
     }
   }
-  else if (0 == strncmp(inBuffer, "rate ", 5)) {
+  else if (0 == strncmp(inBuffer, "rate ", min (5, length))) {
     int newInterval = atoi(inBuffer + 5);
     if (newInterval > 10 && newInterval <= 1000) {
       interval = newInterval;
@@ -112,7 +113,7 @@ int pCB(char *inBuffer) {
       Serial.println("Rate out of bounds (10 < rate <= 1000)");
     }
   }
-  else if (0 == strcmp(inBuffer, "reset") || 0 == strcmp (inBuffer, "reboot")) {
+  else if (0 == strncmp(inBuffer, "reset", length) || 0 == strncmp (inBuffer, "reboot", length)) {
     Serial.flush();
     delay(2000);
     resetFunc();
