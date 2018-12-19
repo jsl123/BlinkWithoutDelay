@@ -30,7 +30,18 @@
 // Pin 13: Teensy 3.0 has the LED on pin 13
 const int ledPin =  13;      // the number of the LED pin
 boolean running = true;
-CmdParser cmd(&pCB);
+CmdParser parser(&pCB);
+enum {CMD_NOT_FOUND, CMD_STOP, CMD_START, CMD_ON, CMD_OFF, CMD_RATE, CMD_VERSION, CMD_RESET} cmds;
+cmd_table_t cmd_table[] = {
+  {"stop", parser.PARSER_WORD, CMD_STOP},
+  {"start", parser.PARSER_WORD, CMD_START},
+  {"on", parser.PARSER_WORD, CMD_ON},
+  {"off", parser.PARSER_WORD, CMD_OFF},
+  {"rate", parser.PARSER_WORD_INT, CMD_RATE},
+  {"reset", parser.PARSER_WORD, CMD_RESET},
+  {"version", parser.PARSER_WORD, CMD_VERSION},
+  {"reboot", parser.PARSER_WORD, CMD_RESET}
+};
 
 // Variables will change:
 int ledState = LOW;             // ledState used to set the LED
@@ -50,7 +61,7 @@ void setup() {
   while (!Serial) {
     ;
   }
-  cmd.init(true);
+  parser.init(cmd_table, true);
 }
 
 void loop()
@@ -75,55 +86,64 @@ void loop()
     digitalWrite(ledPin, ledState);
   }
 
-  cmd.loop();
+  parser.loop();
 }
 
-int pCB(char *inBuffer, int length) {
+int pCB(int cmd, int integer1) {
   boolean setLed = false;
   int rc = 0;
 
-  if (0 == strncmp(inBuffer, "stop", length)) {
-    running = false;
-    Serial.println("Stopped");
+  switch (cmd) {
+    CMD_STOP:
+      running = false;
+      Serial.println("Stopped");
+      break;
+
+    CMD_START:
+      running = true;
+      previousMillis = currentMillis;
+      Serial.println("Started");
+      break;
+
+    CMD_ON:
+      if (! running) {
+        ledState = HIGH;
+        setLed = true;
+      }
+      break;
+      
+    CMD_OFF:
+      if (! running) {
+        ledState = LOW;
+        setLed = true;
+      }
+      break;
+      
+    CMD_RATE:
+      if (integer1 > 10 && integer1 <= 1000) {
+        interval = integer1;
+        Serial.println("New rate set");
+      }
+      else {
+        Serial.println("Rate out of bounds (10 < rate <= 1000)");
+      }
+      break;
+ 
+    CMD_RESET:
+      Serial.flush();
+      delay(2000);
+      resetFunc();
+      break;
+
+    CMD_VERSION:
+      Serial.println(parser.GetVersion());
+      break;
+      
+    CMD_NOT_FOUND: // fall-through
+    default:
+      rc = 1;
+      break;
   }
-  else if (0 == strncmp(inBuffer, "start", length)) {
-    running = true;
-    previousMillis = currentMillis;
-    Serial.println("Started");
-  }
-  else if (0 == strncmp(inBuffer, "on", length)) {
-    if (! running) {
-      ledState = HIGH;
-      setLed = true;
-    }
-  }
-  else if (0 == strncmp(inBuffer, "off", length)) {
-    if (! running) {
-      ledState = LOW;
-      setLed = true;
-    }
-  }
-  else if (0 == strncmp(inBuffer, "rate ", min (5, length))) {
-    int newInterval = atoi(inBuffer + 5);
-    if (newInterval > 10 && newInterval <= 1000) {
-      interval = newInterval;
-      Serial.println("New rate set");
-    }
-    else {
-      Serial.println("Rate out of bounds (10 < rate <= 1000)");
-    }
-  }
-  else if (0 == strncmp(inBuffer, "reset", length) || 0 == strncmp (inBuffer, "reboot", length)) {
-    Serial.flush();
-    delay(2000);
-    resetFunc();
-  }
-  else if (0 == strncmp(inBuffer, "version", length)) {
-    Serial.println(cmd.version());
-  }
-  else {
-    rc = 1;
-  } 
 
   if (setLed) {
     digitalWrite(ledPin, ledState);
