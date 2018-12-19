@@ -75,7 +75,7 @@ void loop()
     digitalWrite(ledPin, ledState);
   }
 
-  cmd.check();
+  cmd.loop();
 }
 
 int pCB(char *inBuffer, int length) {
@@ -117,6 +117,9 @@ int pCB(char *inBuffer, int length) {
     Serial.flush();
     delay(2000);
     resetFunc();
+  }
+  else if (0 == strncmp(inBuffer, "version", length)) {
+    Serial.println(cmd.version());
   }
   else {
     rc = 1;
