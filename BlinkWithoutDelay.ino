@@ -30,18 +30,20 @@
 // Pin 13: Teensy 3.0 has the LED on pin 13
 const int ledPin =  13;      // the number of the LED pin
 boolean running = true;
-CmdParser parser(&pCB);
+
 enum {CMD_NOT_FOUND, CMD_STOP, CMD_START, CMD_ON, CMD_OFF, CMD_RATE, CMD_VERSION, CMD_RESET} cmds;
-cmd_table_t cmd_table[] = {
-  {"stop", parser.PARSER_WORD, CMD_STOP},
-  {"start", parser.PARSER_WORD, CMD_START},
-  {"on", parser.PARSER_WORD, CMD_ON},
-  {"off", parser.PARSER_WORD, CMD_OFF},
-  {"rate", parser.PARSER_WORD_INT, CMD_RATE},
-  {"reset", parser.PARSER_WORD, CMD_RESET},
-  {"version", parser.PARSER_WORD, CMD_VERSION},
-  {"reboot", parser.PARSER_WORD, CMD_RESET}
+struct cmd_table_t cmd_table[] = {
+  {"stop", CmdParser::PARSER_WORD, CMD_STOP},
+  {"start", CmdParser::PARSER_WORD, CMD_START},
+  {"on", CmdParser::PARSER_WORD, CMD_ON},
+  {"off", CmdParser::PARSER_WORD, CMD_OFF},
+  {"rate", CmdParser::PARSER_WORD_INT, CMD_RATE},
+  {"reset", CmdParser::PARSER_WORD, CMD_RESET},
+  {"version", CmdParser::PARSER_WORD, CMD_VERSION},
+  {"reboot", CmdParser::PARSER_WORD, CMD_RESET},
+  {NULL, CmdParser::PARSER_END, 0}
 };
+CmdParser parser(&pCB, cmd_table);
 
 // Variables will change:
 int ledState = LOW;             // ledState used to set the LED
@@ -61,7 +63,7 @@ void setup() {
   while (!Serial) {
     ;
   }
-  parser.init(cmd_table, true);
+  parser.init();
 }
 
 void loop()
@@ -94,32 +96,32 @@ int pCB(int cmd, int integer1) {
   int rc = 0;
 
   switch (cmd) {
-    CMD_STOP:
+    case CMD_STOP:
       running = false;
       Serial.println("Stopped");
       break;
 
-    CMD_START:
+    case CMD_START:
       running = true;
       previousMillis = currentMillis;
       Serial.println("Started");
       break;
 
-    CMD_ON:
+    case CMD_ON:
       if (! running) {
         ledState = HIGH;
         setLed = true;
       }
       break;
       
-    CMD_OFF:
+    case CMD_OFF:
       if (! running) {
         ledState = LOW;
         setLed = true;
       }
       break;
       
-    CMD_RATE:
+    case CMD_RATE:
       if (integer1 > 10 && integer1 <= 1000) {
         interval = integer1;
         Serial.println("New rate set");
@@ -129,18 +131,19 @@ int pCB(int cmd, int integer1) {
       }
       break;
  
-    CMD_RESET:
+    case CMD_RESET:
       Serial.flush();
       delay(2000);
       resetFunc();
       break;
 
-    CMD_VERSION:
+    //case CMD_VERSION:
       Serial.println(parser.GetVersion());
       break;
       
-    CMD_NOT_FOUND: // fall-through
+    case CMD_NOT_FOUND: // fall-through
     default:
+      Serial.println("Command not implemented");
       rc = 1;
       break;
   }
